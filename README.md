@@ -9,7 +9,7 @@ Column explanation:
 - **int.rate**: The interest rate of the loan;
 - **installment**: The monthly installments owed by the borrower if the loan is funded;
 - **log.annual.inc**: The natural log of the self-reported annual income of the borrower;
-- **dti**: The debt-to-income ratio of the borrower (amount of debt divided by annual income);
+- **dti**: The debt-to-income ratio of the borrower (amount of monthly debt payment divided by annual income);
 - **fico**: The FICO credit score of the borrower;
 - **days.with.cr.line**: The number of days the borrower has had a credit line;
 - **revol.bal**: The borrower's revolving balance (amount unpaid at the end of the credit card billing cycle).
