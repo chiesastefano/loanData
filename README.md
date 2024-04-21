@@ -19,3 +19,7 @@ Column explanation:
 - **delinq.2yrs**: The number of times the borrower had been 30+ days past due on a payment in the past 2 years;
 - **pub.rec**: The borrower's number of derogatory public records (bankruptcy filings, tax liens, or judgments);
 - **not.fully.paid**: The loan is not fully paid (1) or is fully paid (0).
+
+
+I then created more columns:
+- 
