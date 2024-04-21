@@ -1,13 +1,18 @@
 library(tidyverse)
 library(nortest)
 
+
 path <- "./data/loan_data.csv"
 
 data <- read.csv(path)
 
 data.1 <- data %>%
   mutate(
-   annual.inc = exp(log.annual.inc)
+   annual.inc = exp(log.annual.inc),
+   credit.policy = factor(credit.policy),
+   not.fully.paid = factor(not.fully.paid),
+   debt = (dti * annual.inc),
+   total_interests = debt * int.rate
   )
 
 data.2 <- data.1 %>%
@@ -18,31 +23,23 @@ data.2 <- data.1 %>%
 
 # visualization==================================================================
 # policy type: most of the clients respect the underwriting criteria of the website 
-policy.counts <- data.2 %>%
-  group_by(credit.policy)%>%
-  summarise(count = n())
 
-ggplot(policy.counts, aes(x = credit.policy, y = count)) +
-  geom_bar(stat = "identity", fill = "pink") +
-  labs(title = "Number of Clients by Policy Type",
-       x = "Policy Type", y = "Number of Clients")
+ggplot(data = data.2, aes(x = credit.policy)) +
+  geom_bar(fill = "pink") +
+  labs(x = "Policy Type", y = "Frequency", title = "Number of Clients by Policy Type")
 
 # 19.5% don't respect the criteria. 80.5 respect them:
-print(policy.counts$count[1]/(policy.counts$count[1]+policy.counts$count[2]))
+no_policy = policy.counts$count[1]
+yes_policy = policy.counts$count[2]
+print(no_policy/(no_policy+yes_policy))
 
 
 # purpose: most of the clients got a loan for debt consolidation
-purpose.counts <- data.2 %>%
-  group_by(purpose)%>%
-  summarise(count = n())
+ggplot(data = data.2, aes(x = credit.policy)) +
+  geom_bar(fill = "lightblue") +
+  labs(x = "Purpose", y = "Frequency", title = "Number of Clients by Purpose of the loan")
 
-ggplot(purpose.counts, aes(x = purpose, y = count)) +
-  geom_bar(stat = "identity", fill = "lightblue") +
-  labs(title = "Number of Clients by Purpose of the loan",
-       x = "Purpose", y = "Number of Clients")
-
-
-#int.rate: 75% clients < 0.14
+# int.rate: 75% clients < 0.14
 ggplot(data.2, aes(x = int.rate)) +
   geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
   labs(title = "Distribution of Claim Amount",
@@ -51,7 +48,7 @@ ggplot(data.2, aes(x = int.rate)) +
 ad.test(data.2$int.rate) # not normal
 quantile(data.2$int.rate)
 
-#installment: 75% of clients <432
+# installment: 75% of clients <432
 ggplot(data.2, aes(x = installment)) +
   geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
   labs(title = "Distribution of Installment",
@@ -60,8 +57,7 @@ ggplot(data.2, aes(x = installment)) +
 quantile(data.2$installment)
 
 
-#dti
-#installment: 75% of clients <17.95
+# dti: 75% less then 17.95
 ggplot(data.2, aes(x = dti)) +
   geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
   labs(title = "Distribution of DTI",
@@ -69,6 +65,179 @@ ggplot(data.2, aes(x = dti)) +
        y = "Frequency") 
 quantile(data.2$dti)
 
+
+
+# FICO: 75 less then 737 
+ggplot(data.2, aes(x= fico)) +
+  geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of FICO",
+       x = "FICO",
+       y = "Frequency")
+quantile(data.2$fico)
+
+# clients that don't respect company credit policy have a higher credit score (weird)
+ggplot(data.2, aes(x = factor(credit.policy), y = fico, fill = credit.policy)) +
+  geom_boxplot() +
+  labs(title = "FICO of Clients Who Respect vs. Don’t Respect the Company Credit Policy",
+       x = "Credit Policy",
+       y = "FICO") +
+  scale_x_discrete(labels = c("Respect Policy", "Don't Respect Policy")) +
+  theme(legend.position = "none")
+
+
+
+
+
+#days of credit line: 75% less than 5730
+ggplot(data.2, aes(x = days.with.cr.line)) +
+  geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Days having a Credit line",
+         x = "Number of days",
+         y = "Frequency")
+quantile(data.2$days.with.cr.line)
+
+
+# amount unpaid at the end of the credit card billing cycle
+ggplot(data.2, aes(x = revol.bal))+
+  geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Revolving Balance",
+       x = "Revolving Balance",
+       y = "Frequency")
+quantile(data.2$revol.bal)
+
+# box plot: more variance for clients that don't respect company policy, median almost identical
+ggplot(data.2, aes(x = factor(credit.policy), y = log(revol.bal), fill = credit.policy)) +
+  geom_boxplot() +
+  labs(title = "Revolving Balance of Clients Who Respect vs. Don’t Respect the Company Credit Policy",
+       x = "Credit Policy",
+       y = "Log of Revolving Balance") +
+  scale_x_discrete(labels = c("Respect Policy", "Don't Respect Policy")) +
+  theme(legend.position = "none")
+
+# how many 0 values in the category "No policy": 5.2%
+indices <- which(data.2$revol.bal[data.2$credit.policy == 0] == 0)
+no_policy_n = length(indices)
+no_policy_ratio = no_policy_n/no_policy
+no_policy_ratio
+
+# how many 0 values in the category "Yes Policy" 2.8%
+indices.2 <- which(data.2$revol.bal[data.2$credit.policy == 1] == 0)
+yes_policy_n = length(indices.2)
+yes_policy_ratio = yes_policy_n/yes_policy
+yes_policy_ratio
+
+
+# Credit line utilization rate: 75% less than 70.9
+ggplot(data.2, aes(x = revol.util))+
+  geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Clients' Utilization Rate",
+       x = "Utilization Rate",
+       y = "Frequency")
+quantile(data.2$revol.util)
+
+# box plot: higher utilization rate for clients that respect the policy (weird)
+ggplot(data.2, aes(x = credit.policy, y = revol.util, fill = credit.policy)) +
+  geom_boxplot() +
+  labs(title = "Utilization Rate of Clients Who Respect vs. Don’t Respect the Company Credit Policy",
+       x = "Credit Policy",
+       y = "Utilization Rate") +
+  scale_x_discrete(labels = c("Respect Policy", "Don't Respect Policy")) +
+  theme(legend.position = "none")
+
+
+
+
+# Inquiries last 6 month: 75% less than 2
+ggplot(data.2, aes(x = inq.last.6mths))+
+  geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Number of Inquiries Last 6 Month Distribution",
+       x = "Number of inquiries",
+       y = "Frequency")
+quantile(data.2$inq.last.6mths)
+
+# box plot: higher inquiries of Clients that respect the policy (weird)
+ggplot(data.2, aes(x = credit.policy, y = inq.last.6mths, fill = credit.policy)) +
+  geom_boxplot() +
+  labs(title = "Number of Inquiries for Clients Who Respect vs. Don’t Respect the Company Credit Policy",
+       x = "Credit Policy",
+       y = "Number of Clients") +
+  scale_x_discrete(labels = c("Respect Policy", "Don't Respect Policy")) +
+  theme(legend.position = "none")
+
+
+
+
+# Delinquent last 2 years: most of the distribution 0 times
+ggplot(data.2, aes(x = delinq.2yrs))+
+  geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Number of time a Client has been delinquent Distribution",
+       x = "Number of times",
+       y = "Frequency")
+quantile(data.2$delinq.2yrs)
+
+
+
+
+# pub.rec: most of the clients with 0 derogatory public records
+ggplot(data.2, aes(x = pub.rec))+
+  geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Number of Derogatory Public Records Distribution",
+       x = "Number of DPR",
+       y = "Frequency")
+quantile(data.2$pub.rec)
+
+
+
+# not.fully.paid: Number most of the clients have fully paid the loan
+ggplot(data = data.2, aes(x = not.fully.paid)) +
+  geom_bar(fill = "red") +
+  labs(x = "Client still owe money", y = "Frequency", title = "Clients whose loan is not fully paid")
+
+
+#annual income: Median = 55764
+ggplot(data.2, aes(x = annual.inc))+
+  geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Annual Income Distribution",
+       x = "Annual Income",
+       y = "Frequency")
+quantile(data.2$annual.inc)
+
+
+#debt: Median = 669,795.7
+ggplot(data.2, aes(x = debt))+
+  geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Debt Distribution",
+       x = "Debt",
+       y = "Frequency")
+quantile(data.2$debt)
+
+#boxplot: not significant difference
+ggplot(data.2, aes(x = credit.policy, y = log(debt), fill = credit.policy)) +
+  geom_boxplot() +
+  labs(title = "Debt of Clients Who Respect vs. Don’t Respect the Company Credit Policy",
+       x = "Credit Policy",
+       y = "Debt") +
+  scale_x_discrete(labels = c("Respect Policy", "Don't Respect Policy")) +
+  theme(legend.position = "none")
+
+# Scatterplot Annual Income VS Debt: the more the income, the more the debt
+ggplot(data = data.2, aes(x = log(annual.inc), y = log(debt))) +
+  geom_point(alpha = 0.5) +
+  labs(x = "Log Annual Income", y = "Log Debt", title = "Annual Income VS Debt")
+
+data.2_sample <- data.2[sample(nrow(data.2), 1000), ]
+
+# Create the scatterplot with log transformation and alpha blending
+ggplot(data = data.2_sample, aes(x = log(annual.inc), y = log(debt))) +
+  geom_point(alpha = 0.5) +
+  labs(x = "Log of Annual Income", y = "Log of Debt", title = "Scatterplot of Log Annual Income vs Log Debt")
+
+
+
+#Scatterplot Annual Income VS Interest Rates: not a clear pattern
+ggplot(data = data.2, aes(x = log(annual.inc), y = int.rate)) +
+  geom_point(alpha = 0.5) +
+  labs(x = "Log Annual Income", y = "Interest Rate", title = "Annual Income VS Interest Rate")
 
 
 
