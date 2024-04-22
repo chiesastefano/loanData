@@ -35,7 +35,7 @@ print(no_policy/(no_policy+yes_policy))
 
 
 # purpose: most of the clients got a loan for debt consolidation
-ggplot(data = data.2, aes(x = credit.policy)) +
+ggplot(data = data.2, aes(x = purpose)) +
   geom_bar(fill = "lightblue") +
   labs(x = "Purpose", y = "Frequency", title = "Number of Clients by Purpose of the loan")
 
@@ -220,25 +220,64 @@ ggplot(data.2, aes(x = credit.policy, y = log(debt), fill = credit.policy)) +
   scale_x_discrete(labels = c("Respect Policy", "Don't Respect Policy")) +
   theme(legend.position = "none")
 
-# Scatterplot Annual Income VS Debt: the more the income, the more the debt
+# scatterplot Annual Income VS Debt: the more the income, the more the debt (as a treshold)
 ggplot(data = data.2, aes(x = log(annual.inc), y = log(debt))) +
   geom_point(alpha = 0.5) +
   labs(x = "Log Annual Income", y = "Log Debt", title = "Annual Income VS Debt")
 
 data.2_sample <- data.2[sample(nrow(data.2), 1000), ]
 
-# Create the scatterplot with log transformation and alpha blending
+# scatterplot 
 ggplot(data = data.2_sample, aes(x = log(annual.inc), y = log(debt))) +
   geom_point(alpha = 0.5) +
   labs(x = "Log of Annual Income", y = "Log of Debt", title = "Scatterplot of Log Annual Income vs Log Debt")
 
 
 
-#Scatterplot Annual Income VS Interest Rates: not a clear pattern
+# scatterplot Annual Income VS Interest Rates: not a clear pattern
 ggplot(data = data.2, aes(x = log(annual.inc), y = int.rate)) +
   geom_point(alpha = 0.5) +
   labs(x = "Log Annual Income", y = "Interest Rate", title = "Annual Income VS Interest Rate")
 
 
 
+
+
+
+# data encoding===============================================================
+data.3 <- data.2 %>%
+  mutate(
+    purpose = as.factor(case_when(
+      purpose == "all_other" ~ "1",
+      purpose == "credit_card" ~ "2",
+      purpose == "debt_consolidation" ~ "3",
+      purpose == "educational" ~ "4",
+      purpose == "home_improvement" ~ "5",
+      purpose == "major_purchase" ~ "6",
+      purpose == "small_business" ~ "7"
+    )))
+
+encoded.data <- model.matrix(~ 0 + purpose, data.3)
+data.4 <- cbind(data.3, encoded.data)
+
+data.5 <- data.4 %>%
+  select(-purpose) %>%
+  rename(
+    all_other = purpose1,
+    credit_card = purpose2,
+    debt_consolidation = purpose3,
+    educational = purpose4,
+    home_improvement = purpose5,
+    major_purchase = purpose6,
+    small_business = purpose7
+  ) %>%
+  mutate(
+    all_other = as.factor(all_other),
+    credit_card = as.factor(credit_card),
+    debt_consolidation = as.factor(debt_consolidation),
+    educational = as.factor(educational),
+    home_improvement = as.factor(home_improvement),
+    major_purchase = as.factor(major_purchase),
+    small_business = as.factor(small_business)
+  )
 
