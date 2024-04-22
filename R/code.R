@@ -1,6 +1,10 @@
 library(tidyverse)
 library(nortest)
-
+library(cluster)
+library(factoextra)
+library(Rtsne)
+library(NbClust)
+library(dbscan)
 
 path <- "./data/loan_data.csv"
 
@@ -280,4 +284,74 @@ data.5 <- data.4 %>%
     major_purchase = as.factor(major_purchase),
     small_business = as.factor(small_business)
   )
+
+
+
+
+#clustering=====================================================================
+# Let's start with clustering with clients related variables (excluding the one assigned by the company)
+data.6 <- data.5 %>%
+  select( -credit.policy, -int.rate, -installment, -not.fully.paid, -debt, -total_interests)
+
+
+# I don't want to scale binary variables
+numeric_columns.1 <- sapply(data.6, is.numeric)
+data.6s <- scale(data.6[, numeric_columns.1])
+
+
+#compute the distance matrix with the scaled data using Gower
+dist.1 <- as.matrix(daisy(data.6s))
+
+
+# data reduction
+tsne.1 <- Rtsne(dist.1, perplexity = 479, dims = 2, is_distance = TRUE) # perplexity equal to 5% of total records
+tsne.coord.1 <- tsne.1$Y
+colnames(tsne.coord.1) <- c("X1", "X2")
+plot(tsne.coord.1, col = "blue", pch = 20, main = "t-SNE Visualization") # looks like 3 clusters
+
+# 4 clusters or 6
+fviz_nbclust(tsne.coord.1, kmeans, method = "wss")
+fviz_nbclust(tsne.coord.1, kmeans, method = "silhouette")
+
+
+# try NbClust function
+km.nbclust.1 <- NbClust(tsne.coord.1, max.nc = 6, method = "kmeans")
+
+# ******************************************************************* 
+#   * Among all indices:                                                
+#   * 2 proposed 2 as the best number of clusters 
+# * 8 proposed 3 as the best number of clusters 
+# * 6 proposed 4 as the best number of clusters 
+# * 7 proposed 6 as the best number of clusters 
+# 
+# ***** Conclusion *****                            
+#   
+#   * According to the majority rule, the best number of clusters is  3 
+# 
+# 
+# ******************************************************************* 
+#3 clusters
+fviz_cluster(list(data = tsne.coord.1, cluster = km.nbclust.1$Best.partition),
+                                  geom = "point", stand = FALSE, ellipse = FALSE)
+
+fviz_cluster(list(data = tsne.coord.1, cluster = km.nbclust.1$Best.partition),
+             geom = "point", stand = FALSE, ellipse = FALSE)
+
+# 4 clusters
+km.1 <- kmeans(tsne.coord.1, centers = 4, nstart = 10)
+fviz_cluster(km.1, data = tsne.coord.1, geom = "point",
+             stand = FALSE, ellipse = FALSE)
+
+# 6 clusters
+km.2 <- kmeans(tsne.coord.1, centers = 6, nstart = 10)
+fviz_cluster(km.2, data = tsne.coord.1, geom = "point",
+             stand = FALSE, ellipse = FALSE)
+
+# we need something that considers the shape of the cluster (DBScan)
+dbscan.1 <- dbscan(tsne.coord.1, eps = 0.70, minPts = 12)
+fviz_cluster(dbscan.1, data = tsne.coord.1, geom = "point", stand = FALSE, ellipse = FALSE) #Good!
+
+
+
+# cluster analysis==============================================================
 
