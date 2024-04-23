@@ -174,7 +174,7 @@ ggplot(data.2, aes(x = credit.policy, y = inq.last.6mths, fill = credit.policy))
 # Delinquent last 2 years: most of the distribution 0 times
 ggplot(data.2, aes(x = delinq.2yrs))+
   geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
-  labs(title = "Number of time a Client has been delinquent Distribution",
+  labs(title = "Number of times a Client has been delinquent Distribution",
        x = "Number of times",
        y = "Frequency")
 quantile(data.2$delinq.2yrs)
@@ -304,6 +304,7 @@ dist.1 <- as.matrix(daisy(data.6s))
 
 
 # data reduction
+set.seed(123)
 tsne.1 <- Rtsne(dist.1, perplexity = 479, dims = 2, is_distance = TRUE) # perplexity equal to 5% of total records
 tsne.coord.1 <- tsne.1$Y
 colnames(tsne.coord.1) <- c("X1", "X2")
@@ -315,7 +316,7 @@ fviz_nbclust(tsne.coord.1, kmeans, method = "silhouette")
 
 
 # try NbClust function
-km.nbclust.1 <- NbClust(tsne.coord.1, max.nc = 6, method = "kmeans")
+#km.nbclust.1 <- NbClust(tsne.coord.1, max.nc = 6, method = "kmeans")
 
 # ******************************************************************* 
 #   * Among all indices:                                                
@@ -348,10 +349,182 @@ fviz_cluster(km.2, data = tsne.coord.1, geom = "point",
              stand = FALSE, ellipse = FALSE)
 
 # we need something that considers the shape of the cluster (DBScan)
-dbscan.1 <- dbscan(tsne.coord.1, eps = 0.70, minPts = 12)
+dbscan.1 <- dbscan(tsne.coord.1, eps = 2, minPts = 84)
 fviz_cluster(dbscan.1, data = tsne.coord.1, geom = "point", stand = FALSE, ellipse = FALSE) #Good!
 
 
 
 # cluster analysis==============================================================
+# let's assign the cluster id to each record
+data.2$cluster_id <- as.factor(dbscan.1$cluster)
+sum(data.2$cluster_id == 0) # 90 outliers < 1% of the dataset
+
+data.2 <- data.2 %>%
+  filter(cluster_id != 0) # filter the outliers
+
+
+# credit policy: not much difference
+policy.counts_clusters <- data.2 %>%
+  group_by(cluster_id, credit.policy) %>%
+  summarise(count = n()) %>%
+  ungroup() %>%
+  group_by(cluster_id) %>%
+  mutate(freq = count/sum(count))
+
+ggplot(policy.counts_clusters, aes(x = cluster_id, y = freq, fill = credit.policy)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Credit Policy Type Across Clusters ",
+       x = "Cluster", y = "Percentage of Claims")
+
+#purpose: not much difference
+purpose.counts_clusters <- data.2 %>%
+  group_by(cluster_id, purpose) %>%
+  summarise(count = n()) %>%
+  ungroup() %>%
+  group_by(cluster_id) %>%
+  mutate(freq = count/sum(count))
+
+ggplot(purpose.counts_clusters, aes(x = cluster_id, y = freq, fill = purpose)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Purpose Across Clusters ",
+       x = "Cluster", y = "Percentage of Purpose")
+
+#int.rate: lower interest rate for cluster 1
+ggplot(data.2, aes(x = cluster_id, y = int.rate, fill = cluster_id)) +
+  geom_boxplot() +
+  labs(title = "Interest Rate Distribution Across Clusters",
+       x = "Cluster",
+       y = "Interest Rate")
+
+
+#installment: not much difference
+ggplot(data.2, aes(x = cluster_id, y = installment, fill = cluster_id)) +
+  geom_boxplot() +
+  labs(title = "Installment Distribution Across Clusters",
+       x = "Cluster",
+       y = "Installment")
+
+#dti: not much difference
+ggplot(data.2, aes(x = cluster_id, y = dti, fill = cluster_id)) +
+  geom_boxplot() +
+  labs(title = "Debt-to-income ratio Across Clusters",
+       x = "Cluster",
+       y = "DTI")
+
+#fico: higher FICO for cluster 1 (that also has lower interest rate)
+ggplot(data.2, aes(x = cluster_id, y = fico, fill = cluster_id)) +
+  geom_boxplot() +
+  labs(title = "Fico ratio Across Clusters",
+       x = "Cluster",
+       y = "DTI")
+
+
+#days.with.cr.line: increasing between clusters
+ggplot(data.2, aes(x = cluster_id, y = days.with.cr.line, fill = cluster_id)) +
+  geom_boxplot() +
+  labs(title = "Days with a Credit Line Across Clusters",
+       x = "Cluster",
+       y = "Days with a Credit Line")
+
+
+#revol.bal: not much difference
+ggplot(data.2, aes(x = cluster_id, y = log(revol.bal), fill = cluster_id)) +
+  geom_boxplot() +
+  labs(title = "Revolving Balance Across Clusters",
+       x = "Cluster",
+       y = "Log Revolving Balance")
+
+
+#revol.util: higher for the third one
+ggplot(data.2, aes(x = cluster_id, y = revol.util, fill = cluster_id)) +
+  geom_boxplot() +
+  labs(title = "Revolving Line Utilization rate Across Clusters",
+       x = "Cluster",
+       y = "Utilization Rate")
+
+
+
+#inq.last.6mths: the 3d cluster has an higher percentage of inquiries
+inq_sum <- data.2 %>%
+  group_by(cluster_id) %>%
+  summarise(sum_inq = sum(inq.last.6mths), n = n()) %>%
+  mutate(relative_sum = sum_inq / n)
+
+ggplot(inq_sum, aes(x = as.factor(cluster_id), y = relative_sum, fill = as.factor(cluster_id))) +
+  geom_bar(stat = "identity") +
+  labs(title = "Relative Sum of Inquiries in the last 6 months Across Clusters",
+       x = "Cluster",
+       y = "Inquiries %")
+
+
+#delinq.2yrs: cluster two and three have an higher percentage of delinquent
+delinq.2yrs_sum <- data.2 %>%
+  group_by(cluster_id) %>%
+  summarise(sum_del = sum(delinq.2yrs), n = n()) %>%
+  mutate(relative_sum = sum_del / n)
+
+ggplot(delinq.2yrs_sum, aes(x = as.factor(cluster_id), y = relative_sum, fill = as.factor(cluster_id))) +
+  geom_bar(stat = "identity") +
+  labs(title = "Relative Sum of Delinquents in the last 2 years Within Clusters",
+       x = "Cluster",
+       y = "Delinquents %")
+
+
+
+#pub.rec: almost all the derogatory public records are in the 3d cluster
+pub.rec_sum <- data.2 %>%
+  group_by(cluster_id) %>%
+  summarise(sum_pub_rec = sum(pub.rec), n = n()) %>%
+  mutate(relative_sum = sum_pub_rec / n)
+
+ggplot(pub.rec_sum, aes(x = as.factor(cluster_id), y = relative_sum, fill = as.factor(cluster_id))) +
+  geom_bar(stat = "identity") +
+  labs(title = "Relative Sum of Derogatory Public Records Within Clusters",
+       x = "Cluster",
+       y = "Derogatory Public Records %")
+
+
+
+# not.fully.paid: sightly increasing (but similar)
+not.fully.paid.counts_clusters <- data.2 %>%
+  group_by(cluster_id, not.fully.paid) %>%
+  summarise(count = n()) %>%
+  ungroup() %>%
+  group_by(cluster_id) %>%
+  mutate(freq = count/sum(count))
+
+ggplot(not.fully.paid.counts_clusters, aes(x = cluster_id, y = freq, fill = not.fully.paid)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Not fully paid Distribution Accross Clusters",
+       x = "Cluster", y = "Percentage of Claims")
+
+
+
+
+#annual.inc: similar
+ggplot(data.2, aes(x = cluster_id, y = annual.inc, fill = cluster_id)) +
+  geom_boxplot() +
+  labs(title = "Annual Income Across Clusters",
+       x = "Cluster",
+       y = "Annual Income")
+
+
+#debt: similar
+ggplot(data.2, aes(x = cluster_id, y = debt, fill = cluster_id)) +
+  geom_boxplot() +
+  labs(title = "Total Debt Across Clusters",
+       x = "Cluster",
+       y = "Debt")
+
+
+#total_interests: similar, but increasing between clusters
+ggplot(data.2, aes(x = cluster_id, y = log(total_interests), fill = cluster_id)) +
+  geom_boxplot() +
+  labs(title = "Total Interests Across Clusters",
+       x = "Cluster",
+       y = "Interests")
+
+
+
+
 
