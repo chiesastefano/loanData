@@ -651,9 +651,10 @@ for(predictor in names(data.train.1)) {
 }
 
 #inq.last.6mths, after 9 times, predict 100% of the records being 0.
+# same problem with revol.bal
 # The coefficient of this variable is also very high compared to the others.
 
-#I could remove it
+#I could remove them
 
 
 
