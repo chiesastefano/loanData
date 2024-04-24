@@ -5,6 +5,11 @@ library(factoextra)
 library(Rtsne)
 library(NbClust)
 library(dbscan)
+library(gridExtra)
+library(plotly)
+library(ggcorrplot)
+library(glmnet)
+library(pROC)
 
 path <- "./data/loan_data.csv"
 
@@ -244,7 +249,7 @@ ggplot(data = data.2, aes(x = log(annual.inc), y = int.rate)) +
   labs(x = "Log Annual Income", y = "Interest Rate", title = "Annual Income VS Interest Rate")
 
 
-
+cluster_dimensions = cbind(as.factor(dbscan.1$cluster), as.factor(dbscan))
 
 
 
@@ -348,15 +353,65 @@ km.2 <- kmeans(tsne.coord.1, centers = 6, nstart = 10)
 fviz_cluster(km.2, data = tsne.coord.1, geom = "point",
              stand = FALSE, ellipse = FALSE)
 
+
+
+#hierarchical clustering
+k.1 <- 3
+dist.1_d <- as.dist(dist.1)
+h.1_complete <- hclust(dist.1_d, method = "complete")
+h.1.clusters_complete <- cutree(h.1_complete, k = k.1)
+plot.h.1_complete <- fviz_cluster(list(data = data.6s, cluster = h.1.clusters_complete),
+                                  geom = "point", stand = FALSE, ellipse = FALSE)
+
+h.1_single <- hclust(dist.1_d, method = "single")
+h.1.clusters_single <- cutree(h.1_single, k = k.1)
+plot.h.1_single <- fviz_cluster(list(data = data.6s, cluster = h.1.clusters_single),
+                                geom = "point", stand = FALSE, ellipse = FALSE)
+
+h.1_average <- hclust(dist.1_d, method = "average")
+h.1.clusters_average <- cutree(h.1_average, k = k.1)
+plot.h.1_average <- fviz_cluster(list(data = data.6s, cluster = h.1.clusters_average),
+                                 geom = "point", stand = FALSE, ellipse = FALSE)
+
+grid.arrange(plot.h.1_complete, plot.h.1_single, plot.h.1_average, ncol = 3)
+
+
+#compute thee silhoutte score: it suggest that they're similar withing clusters 
+#compared to the others, but it's mainly because the cluster 1 is dominant
+mean(silhouette(h.1.clusters_complete, dist.1_d)[, "sil_width"])  
+mean(silhouette(h.1.clusters_single, dist.1_d)[, "sil_width"])
+mean(silhouette(h.1.clusters_average, dist.1_d)[, "sil_width"])
+
+
 # we need something that considers the shape of the cluster (DBScan)
 dbscan.1 <- dbscan(tsne.coord.1, eps = 2, minPts = 84)
 fviz_cluster(dbscan.1, data = tsne.coord.1, geom = "point", stand = FALSE, ellipse = FALSE) #Good!
 
 
 
+
+#try with 3 dimension data reduction
+seed(1234)
+tsne.2 <- Rtsne(dist.1, perplexity = 479, dims = 3, is_distance = TRUE) # perplexity equal to 5% of total records
+tsne.coord.2 <- tsne.2$Y
+dbscan.2 <- dbscan(tsne.coord.2, eps = 3, minPts = 84)
+
+
+colnames(tsne.coord.2) <- c("X1", "X2", "X3")
+p <- plot_ly(data = as.data.frame(tsne.coord.2),
+            x = ~tsne.coord.2[,1],
+            y = ~tsne.coord.2[,2],
+            z = ~tsne.coord.2[,3],
+            color = ~dbscan.2$cluster) %>%
+ add_markers(size = 1.5)
+print(p) # we obtained pretty much the same clusters
+
+
+data.2$cluster_id <- as.factor(dbscan.1$cluster)
+
 # cluster analysis==============================================================
 # let's assign the cluster id to each record
-data.2$cluster_id <- as.factor(dbscan.1$cluster)
+
 sum(data.2$cluster_id == 0) # 90 outliers < 1% of the dataset
 
 data.2 <- data.2 %>%
@@ -527,4 +582,96 @@ ggplot(data.2, aes(x = cluster_id, y = log(total_interests), fill = cluster_id))
 
 
 
+
+
+
+
+
+
+#Which are the variables that make a client respecting the company policy?=========
+data.7 <- data.2 %>%
+  select(-int.rate, -cluster_id, -not.fully.paid, -total_interests)
+
+corr.matrix.1 <- cor(data.7 %>% select_if(.predicate = is.numeric))
+ggcorrplot(corr.matrix.1, type = "lower", outline.color = "white", lab = TRUE) +
+  ggtitle("Correlation Heatmap")
+
+
+
+
+
+# split the Data into Training and Test Set
+ind <- sample(nrow(data.7), size = 0.8*nrow(data.7))
+data.train.1 <- data.7[ind, ]
+data.test.1 <- data.7[-ind, ]
+
+# we use glm() with specifying a binomial family because we are estimating a binary variable 
+model.1 <- glm(credit.policy ~ ., family = binomial(), data = data.train.1)
+summary(model.1)
+
+prediction.1 <- round(predict(model.1, newdata = data.test.1, type = "response"))
+
+
+# compute some indices for evaluation 
+model.1.auc <- auc(roc(data.test.1$credit.policy, prediction.1))
+model.1.conf.matrix <- caret::confusionMatrix(data = factor(prediction.1, levels = c("0", "1")),
+                                         reference = data.test.1$credit.policy,
+                                         positive = "1")
+model.1.accuracy <- model.1.conf.matrix$overall["Accuracy"]
+model.1.precision <- model.1.conf.matrix$byClass["Precision"]
+model.1.recall <- model.1.conf.matrix$byClass["Recall"]
+model.1.f1 <- model.1.conf.matrix$byClass["F1"]
+
+
+model.1.conf.matrix$table
+model.1.accuracy #TP+TN/ALL 0.9044885 
+model.1.precision #TP/TP+FP 0.9168704
+model.1.recall #TP/TP+FN 0.9696186 
+model.1.f1 #Harmonic mean between precision and recall 0.9425071 
+
+#Probably very good because the company assigns the credit.policy based on this data
+
+
+
+
+
+
+# th model has a variable that, after a certain threshold, predict 100% of 0 or 1 
+
+# let's check the variables one by one
+table(data.train.1$purpose, data.train.1$credit.policy)
+for(predictor in names(data.train.1)) {
+  if(is.numeric(data.train.1[[predictor]])) {
+    plot(density(data.train.1[data.train.1$credit.policy == 0 & !is.na(data.train.1[[predictor]]), predictor], na.rm=TRUE), 
+         col='red', main=paste('Density Plot of', predictor, 'by Credit Policy'), xlab=predictor)
+    lines(density(data.train.1[data.train.1$credit.policy == 1 & !is.na(data.train.1[[predictor]]), predictor], na.rm=TRUE), 
+          col='blue')
+    legend("topright", c("credit.policy=0", "credit.policy=1"), fill=c("red", "blue"))
+  }
+}
+
+#inq.last.6mths, after 9 times, predict 100% of the records being 0.
+# The coefficient of this variable is also very high compared to the others.
+
+#I could remove it
+
+
+
+
+# let's try with Ridge or Lasso regression (I'm using Ridge because I believe that most of the variables are relevant)
+model.matrix.1 <- model.matrix(credit.policy ~ . - 1, data = data.train.1)  # predictors
+model.vector.1 <- data.train.1$credit.policy  # outcome
+
+
+model.2 <- glmnet(model.matrix.1, model.vector.1, family = "binomial", alpha = 0)
+summary(model.2)
+
+model.2.fit <- cv.glmnet(model.matrix.1, model.vector.1, family = "binomial")
+optimal_lambda <- model.2.fit$lambda.min
+model.2.coefficients <- coef(model.2, s = optimal_lambda)
+
+
+
+
+#Which are the variables that affect more the decision of the interest rate?====
 
