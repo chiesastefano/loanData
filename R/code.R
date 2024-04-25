@@ -10,6 +10,7 @@ library(plotly)
 library(ggcorrplot)
 library(glmnet)
 library(pROC)
+library(MASS)
 
 path <- "./data/loan_data.csv"
 
@@ -615,8 +616,8 @@ prediction.1 <- round(predict(model.1, newdata = data.test.1, type = "response")
 # compute some indices for evaluation 
 model.1.auc <- auc(roc(data.test.1$credit.policy, prediction.1))
 model.1.conf.matrix <- caret::confusionMatrix(data = factor(prediction.1, levels = c("0", "1")),
-                                         reference = data.test.1$credit.policy,
-                                         positive = "1")
+                                              reference = data.test.1$credit.policy,
+                                              positive = "1")
 model.1.accuracy <- model.1.conf.matrix$overall["Accuracy"]
 model.1.precision <- model.1.conf.matrix$byClass["Precision"]
 model.1.recall <- model.1.conf.matrix$byClass["Recall"]
@@ -624,6 +625,7 @@ model.1.f1 <- model.1.conf.matrix$byClass["F1"]
 
 
 model.1.conf.matrix$table
+model.1.auc #0.8005
 model.1.accuracy #TP+TN/ALL 0.9044885 
 model.1.precision #TP/TP+FP 0.9168704
 model.1.recall #TP/TP+FN 0.9696186 
@@ -671,6 +673,61 @@ model.2.fit <- cv.glmnet(model.matrix.1, model.vector.1, family = "binomial")
 optimal_lambda <- model.2.fit$lambda.min
 model.2.coefficients <- coef(model.2, s = optimal_lambda)
 
+model.matrix.test.1 <- model.matrix(credit.policy ~ . - 1, data = data.test.1)
+predictions.2 <- round(predict(model.2, newx = model.matrix.test.1, type = "response", s = optimal_lambda))
+
+
+
+
+# compute some indices for evaluation 
+model.2.auc <- auc(roc(data.test.1$credit.policy, predictions.2))
+model.2.conf.matrix <- caret::confusionMatrix(data = factor(predictions.2, levels = c("0", "1")),
+                                              reference = data.test.1$credit.policy,
+                                              positive = "1")
+model.2.accuracy <- model.2.conf.matrix$overall["Accuracy"]
+model.2.precision <- model.2.conf.matrix$byClass["Precision"]
+model.2.recall <- model.2.conf.matrix$byClass["Recall"]
+model.2.f1 <- model.2.conf.matrix$byClass["F1"]
+
+
+model.2.conf.matrix$table
+model.2.auc #0.7611 lower
+model.2.accuracy #TP+TN/ALL 0.9008351 same
+model.2.precision #TP/TP+FP 0.8988 lower
+model.2.recall #TP/TP+FN 0.9883 higher 
+model.2.f1 #Harmonic mean between precision and recall 0.9415 lower
+# the two model performance are not much different
+
+
+
+
+# step-wise selection (bi-directional)
+data.train.1 <- data.7[ind, ]
+data.test.1 <- data.7[-ind, ]
+model.3 <- stepAIC(model.1, direction = "both", trace = 0)
+summary(model.3) #no dit and pub.rec (both not statistically significant)
+
+prediction.3 <- round(predict(model.3, newdata = data.test.1, type = "response"))
+
+
+# compute some indices for evaluation 
+model.3.auc <- auc(roc(data.test.1$credit.policy, prediction.3))
+model.3.conf.matrix <- caret::confusionMatrix(data = factor(prediction.3, levels = c("0", "1")),
+                                              reference = data.test.1$credit.policy,
+                                              positive = "1")
+model.3.accuracy <- model.3.conf.matrix$overall["Accuracy"]
+model.3.precision <- model.3.conf.matrix$byClass["Precision"]
+model.3.recall <- model.3.conf.matrix$byClass["Recall"]
+model.3.f1 <- model.3.conf.matrix$byClass["F1"]
+
+
+model.3.conf.matrix$table
+model.3.auc #0.7992 lower
+model.3.accuracy #TP+TN/ALL 0.90396 lower 
+model.3.precision #TP/TP+FP 0.916310 lower
+model.3.recall #TP/TP+FN 0.9696186 same
+model.3.f1 #Harmonic mean between precision and recall 0.94221 lower
+#not much difference
 
 
 
