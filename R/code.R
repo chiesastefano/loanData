@@ -12,6 +12,7 @@ library(glmnet)
 library(pROC)
 library(MASS)
 library(Metrics)
+library(car)
 
 
 path <- "./data/loan_data.csv"
@@ -754,6 +755,7 @@ data.test.2 <- data.8[-ind2, ]
 
 model.4 <- glm(int.rate ~ ., family = Gamma("log"), data = data.train.2)
 summary(model.4) #iti significant 5% confidence
+vif(model.4)  #annual.inc and debt could cause multicollinearity
 
 
 prediction.4 <- predict(model.4, newdata = data.test.2, type = "response")
@@ -793,12 +795,13 @@ data.test.2$res1 <- NULL
 #try with step-wise selection
 model.5 <- stepAIC(model.4, direction = "both", trace = 0)
 summary(model.5) # removed(days.with.cr.line, delinq.2yrs, annual.inc, pub.rec, debt) (non of them where statistically significant)
+vif(model.5) # better
 
 prediction.5 <- predict(model.5, newdata = data.test.2, type = "response")
 
 # compute R-squared
 rsq <- cor(prediction.5, data.test.2$int.rate)^2
-rsq #0.6552216
+rsq #0.6552216 # higher R^2 even with less variables
 
 
 model.null2 <- glm(int.rate ~ 1, family = Gamma("log"), data = data.train.2)
