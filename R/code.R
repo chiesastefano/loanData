@@ -252,7 +252,7 @@ ggplot(data = data.2, aes(x = log(annual.inc), y = int.rate)) +
   labs(x = "Log Annual Income", y = "Interest Rate", title = "Annual Income VS Interest Rate")
 
 
-cluster_dimensions = cbind(as.factor(dbscan.1$cluster), as.factor(dbscan))
+#cluster_dimensions = cbind(as.factor(dbscan.1$cluster), as.factor(dbscan))
 
 
 
@@ -697,7 +697,7 @@ model.2.auc #0.7611 lower
 model.2.accuracy #TP+TN/ALL 0.9008351 same
 model.2.precision #TP/TP+FP 0.8988 lower
 model.2.recall #TP/TP+FN 0.9883 higher 
-model.2.f1 #Harmonic mean between precision and recall 0.9415 lower
+model.2.f1 #harmonic mean between precision and recall 0.9415 lower
 # the two model performance are not much different
 
 
@@ -740,14 +740,20 @@ data.8 <- data.2 %>%
   mutate(
     iti = installment / (annual.inc / 12) # compute the installment to income ratio
   ) %>%
-  dplyr::select(-cluster_id, -not.fully.paid)
+  dplyr::select(-cluster_id, -not.fully.paid, -total_interests)
+
+
+#REMOVE THE REDUNDANT VARIABLES
+
+
+
 
 ind2 <- sample(nrow(data.8), size = 0.8*nrow(data.8))
 data.train.2 <- data.8[ind2, ]
 data.test.2 <- data.8[-ind2, ]
 
 model.4 <- glm(int.rate ~ ., family = Gamma("log"), data = data.train.2)
-summary(model.4) #iti not significant
+summary(model.4) #iti significant 5% confidence
 
 
 prediction.4 <- predict(model.4, newdata = data.test.2, type = "response")
@@ -755,20 +761,20 @@ prediction.4 <- predict(model.4, newdata = data.test.2, type = "response")
 
 # compute R-squared
 rsq <- cor(prediction.4, data.test.2$int.rate)^2
-rsq #0.7548284
-summary(model.4)$adj.r.squared
+rsq #0.6548284
+
 
 
 # compute McFadden's R-squared
 model.null <- glm(int.rate ~ 1, family = Gamma("log"), data = data.train.2)
 rsq.mcfadden <- 1 - logLik(model.4)/logLik(model.null)
-rsq.mcfadden #'log Lik.' -0.3149262 (df=22)
+rsq.mcfadden #'log Lik.' -0.2541747 (df=21)
 
 
 # compute RMSE
 rmse <- rmse(data.test.2$int.rate, prediction.4)
 rmse # 0.0132083866078056
-mean(data.test.2$int.rate) #0.1227284 
+mean(data.test.2$int.rate) #0.1230635 
 
 # residuals
 res.1 <- data.test.2$int.rate - prediction.4
@@ -786,23 +792,23 @@ data.test.2$res1 <- NULL
 
 #try with step-wise selection
 model.5 <- stepAIC(model.4, direction = "both", trace = 0)
-summary(model.5) # removed(credit.policy, days.with.cr.line, pub.rec, iti) (non of them where statistically significant)
+summary(model.5) # removed(days.with.cr.line, delinq.2yrs, annual.inc, pub.rec, debt) (non of them where statistically significant)
 
 prediction.5 <- predict(model.5, newdata = data.test.2, type = "response")
 
 # compute R-squared
 rsq <- cor(prediction.5, data.test.2$int.rate)^2
-rsq #0.7548284
+rsq #0.6552216
 
 
 model.null2 <- glm(int.rate ~ 1, family = Gamma("log"), data = data.train.2)
 rsq.mcfadden2 <- 1 - logLik(model.5)/logLik(model.null2)
-rsq.mcfadden2 #'log Lik.' -0.3148926 (df=17): similar to the previous, but with less predictors
+rsq.mcfadden2 #'log Lik.' -0.2540988 (df=16): similar to the previous, but with less predictors
 
 # compute RMSE
 rmse <- rmse(data.test.2$int.rate, prediction.4)
-rmse # 0.01320839
-mean(data.test.2$int.rate) #0.1227284 
+rmse # 0.01597325
+mean(data.test.2$int.rate) #0.1230635 
 
 
 # residuals
