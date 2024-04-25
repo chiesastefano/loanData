@@ -11,6 +11,8 @@ library(ggcorrplot)
 library(glmnet)
 library(pROC)
 library(MASS)
+library(Metrics)
+
 
 path <- "./data/loan_data.csv"
 
@@ -52,7 +54,7 @@ ggplot(data = data.2, aes(x = purpose)) +
 # int.rate: 75% clients < 0.14
 ggplot(data.2, aes(x = int.rate)) +
   geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
-  labs(title = "Distribution of Claim Amount",
+  labs(title = "Distribution of Interest Rate",
        x = "Interest Rate",
        y = "Frequency") 
 ad.test(data.2$int.rate) # not normal
@@ -733,3 +735,81 @@ model.3.f1 #Harmonic mean between precision and recall 0.94221 lower
 
 #Which are the variables that affect more the decision of the interest rate?====
 
+
+data.8 <- data.2 %>%
+  mutate(
+    iti = installment / (annual.inc / 12) # compute the installment to income ratio
+  ) %>%
+  dplyr::select(-cluster_id, -not.fully.paid)
+
+ind2 <- sample(nrow(data.8), size = 0.8*nrow(data.8))
+data.train.2 <- data.8[ind2, ]
+data.test.2 <- data.8[-ind2, ]
+
+model.4 <- glm(int.rate ~ ., family = Gamma("log"), data = data.train.2)
+summary(model.4) #iti not significant
+
+
+prediction.4 <- predict(model.4, newdata = data.test.2, type = "response")
+
+
+# compute R-squared
+rsq <- cor(prediction.4, data.test.2$int.rate)^2
+rsq #0.7548284
+summary(model.4)$adj.r.squared
+
+
+# compute McFadden's R-squared
+model.null <- glm(int.rate ~ 1, family = Gamma("log"), data = data.train.2)
+rsq.mcfadden <- 1 - logLik(model.4)/logLik(model.null)
+rsq.mcfadden #'log Lik.' -0.3149262 (df=22)
+
+
+# compute RMSE
+rmse <- rmse(data.test.2$int.rate, prediction.4)
+rmse # 0.0132083866078056
+mean(data.test.2$int.rate) #0.1227284 
+
+# residuals
+res.1 <- data.test.2$int.rate - prediction.4
+plot(res.1)
+
+data.test.2$res1 <- res.1
+corr.matrix.2 <- cor(data.test.2 %>% select_if(.predicate = is.numeric))
+ggcorrplot(corr.matrix.2, type = "lower", outline.color = "white", lab = TRUE) +
+  ggtitle("Correlation Heatmap")
+#probably the error is higher when the interest rate is higher because:
+# The distribution is right skewed
+# There are other factors influencing the int.rate that are not included in the model (eg. inflation rate)
+
+data.test.2$res1 <- NULL
+
+#try with step-wise selection
+model.5 <- stepAIC(model.4, direction = "both", trace = 0)
+summary(model.5) # removed(credit.policy, days.with.cr.line, pub.rec, iti) (non of them where statistically significant)
+
+prediction.5 <- predict(model.5, newdata = data.test.2, type = "response")
+
+# compute R-squared
+rsq <- cor(prediction.5, data.test.2$int.rate)^2
+rsq #0.7548284
+
+
+model.null2 <- glm(int.rate ~ 1, family = Gamma("log"), data = data.train.2)
+rsq.mcfadden2 <- 1 - logLik(model.5)/logLik(model.null2)
+rsq.mcfadden2 #'log Lik.' -0.3148926 (df=17): similar to the previous, but with less predictors
+
+# compute RMSE
+rmse <- rmse(data.test.2$int.rate, prediction.4)
+rmse # 0.01320839
+mean(data.test.2$int.rate) #0.1227284 
+
+
+# residuals
+res.2 <- data.test.2$int.rate - prediction.5
+plot(res.2)
+
+data.test.2$res2 <- res.2
+corr.matrix.3 <- cor(data.test.2 %>% select_if(.predicate = is.numeric))
+ggcorrplot(corr.matrix.3, type = "lower", outline.color = "white", lab = TRUE) +
+  ggtitle("Correlation Heatmap") #almost identical
