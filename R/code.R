@@ -29,7 +29,7 @@ data.1 <- data %>%
   )
 
 data.2 <- data.1 %>%
-  select(-log.annual.inc)
+  dplyr::select(-log.annual.inc)
 
 
 
@@ -611,7 +611,7 @@ ggplot(data.2, aes(x = cluster_id, y = log(total_interests), fill = cluster_id))
 
 #Which are the variables that make a client respecting the company policy?=========
 data.7 <- data.2 %>%
-  select(-int.rate, -cluster_id, -not.fully.paid, -total_interests)
+  dplyr::select(-int.rate, -cluster_id, -not.fully.paid, -total_interests)
 
 corr.matrix.1 <- cor(data.7 %>% select_if(.predicate = is.numeric))
 ggcorrplot(corr.matrix.1, type = "lower", outline.color = "white", lab = TRUE) +
@@ -630,11 +630,18 @@ data.test.1 <- data.7[-ind, ]
 model.1 <- glm(credit.policy ~ ., family = binomial(), data = data.train.1)
 summary(model.1)
 
-prediction.1 <- round(predict(model.1, newdata = data.test.1, type = "response"))
-
+prediction.1 <- round(probabilities)
+vif(model.1)
 
 # compute some indices for evaluation 
-model.1.auc <- auc(roc(data.test.1$credit.policy, prediction.1))
+model.1.auc <- pROC::auc(pROC::roc(data.test.1$credit.policy, prediction.1))
+
+# plot the ROC curve
+roc_curve <- pROC::roc(data.test.1$credit.policy, prediction.1)
+plot(roc_curve, main="ROC Curve", col = "blue")
+legend("bottomright", legend = paste("AUC = ", round(auc(roc_curve), 2)), col = "blue", lwd = 2, bty = "n")
+
+
 model.1.conf.matrix <- caret::confusionMatrix(data = factor(prediction.1, levels = c("0", "1")),
                                               reference = data.test.1$credit.policy,
                                               positive = "1")
@@ -642,6 +649,7 @@ model.1.accuracy <- model.1.conf.matrix$overall["Accuracy"]
 model.1.precision <- model.1.conf.matrix$byClass["Precision"]
 model.1.recall <- model.1.conf.matrix$byClass["Recall"]
 model.1.f1 <- model.1.conf.matrix$byClass["F1"]
+
 
 
 model.1.conf.matrix$table
@@ -681,7 +689,7 @@ for(predictor in names(data.train.1)) {
 
 
 
-# let's try with Ridge or Lasso regression (I'm using Ridge because I believe that most of the variables are relevant)
+# let's try with Ridge regression (I'm using Ridge instead of Lasso because I believe that most of the variables are relevant)
 model.matrix.1 <- model.matrix(credit.policy ~ . - 1, data = data.train.1)  # predictors
 model.vector.1 <- data.train.1$credit.policy  # outcome
 
@@ -700,7 +708,7 @@ predictions.2 <- round(predict(model.2, newx = model.matrix.test.1, type = "resp
 
 
 # compute some indices for evaluation 
-model.2.auc <- auc(roc(data.test.1$credit.policy, predictions.2))
+model.2.auc <- pROC::auc(pROC::roc(data.test.1$credit.policy, predictions.2))
 model.2.conf.matrix <- caret::confusionMatrix(data = factor(predictions.2, levels = c("0", "1")),
                                               reference = data.test.1$credit.policy,
                                               positive = "1")
@@ -731,7 +739,7 @@ prediction.3 <- round(predict(model.3, newdata = data.test.1, type = "response")
 
 
 # compute some indices for evaluation 
-model.3.auc <- auc(roc(data.test.1$credit.policy, prediction.3))
+model.3.auc <- pROC::auc(pROC::roc(data.test.1$credit.policy, prediction.3))
 model.3.conf.matrix <- caret::confusionMatrix(data = factor(prediction.3, levels = c("0", "1")),
                                               reference = data.test.1$credit.policy,
                                               positive = "1")
