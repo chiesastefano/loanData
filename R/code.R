@@ -39,7 +39,7 @@ data.2 <- data.1 %>%
 
 ggplot(data = data.2, aes(x = credit.policy)) +
   geom_bar(fill = "pink") +
-  labs(x = "Policy Type", y = "Frequency", title = "Number of Clients by Policy Type")
+  labs(x = "Credit Policy", y = "Frequency", title = "Number of Clients by Credit Policy")
 
 # 19.5% don't respect the criteria. 80.5 respect them:
 no_policy = policy.counts$count[1]
@@ -60,6 +60,16 @@ ggplot(data.2, aes(x = int.rate)) +
        y = "Frequency") 
 ad.test(data.2$int.rate) # not normal
 quantile(data.2$int.rate)
+
+
+ggplot(data.2, aes(x = factor(credit.policy), y = int.rate, fill = credit.policy)) +
+  geom_boxplot() +
+  labs(title = "Interest Rate of Clients that Respect vs. Don’t Respect the Company Credit Policy",
+       x = "Credit Policy",
+       y = "Interest Rate") +
+  scale_x_discrete(labels = c("Respect Policy", "Don't Respect Policy")) +
+  theme(legend.position = "none")
+
 
 # installment: 75% of clients <432
 ggplot(data.2, aes(x = installment)) +
@@ -173,7 +183,7 @@ ggplot(data.2, aes(x = credit.policy, y = inq.last.6mths, fill = credit.policy))
   geom_boxplot() +
   labs(title = "Number of Inquiries for Clients Who Respect vs. Don’t Respect the Company Credit Policy",
        x = "Credit Policy",
-       y = "Number of Clients") +
+       y = "Number of Inquiries") +
   scale_x_discrete(labels = c("Respect Policy", "Don't Respect Policy")) +
   theme(legend.position = "none")
 
@@ -188,7 +198,7 @@ ggplot(data.2, aes(x = delinq.2yrs))+
        y = "Frequency")
 quantile(data.2$delinq.2yrs)
 
-
+plot(data.2$delinq.2yrs)
 
 
 # pub.rec: most of the clients with 0 derogatory public records
@@ -215,6 +225,13 @@ ggplot(data.2, aes(x = annual.inc))+
        y = "Frequency")
 quantile(data.2$annual.inc)
 
+ggplot(data.2, aes(x = credit.policy, y = log(annual.inc), fill = credit.policy)) +
+  geom_boxplot() +
+  labs(title = "Annual Income of Clients Who Respect vs. Don’t Respect the Company Credit Policy",
+       x = "Credit Policy",
+       y = "Log Annual Income") +
+  scale_x_discrete(labels = c("Respect Policy", "Don't Respect Policy")) +
+  theme(legend.position = "none")
 
 #debt: Median = 669,795.7
 ggplot(data.2, aes(x = debt))+
@@ -229,7 +246,7 @@ ggplot(data.2, aes(x = credit.policy, y = log(debt), fill = credit.policy)) +
   geom_boxplot() +
   labs(title = "Debt of Clients Who Respect vs. Don’t Respect the Company Credit Policy",
        x = "Credit Policy",
-       y = "Debt") +
+       y = "Log Debt") +
   scale_x_discrete(labels = c("Respect Policy", "Don't Respect Policy")) +
   theme(legend.position = "none")
 
@@ -744,7 +761,6 @@ data.8 <- data.2 %>%
   dplyr::select(-cluster_id, -not.fully.paid, -total_interests)
 
 
-#REMOVE THE REDUNDANT VARIABLES
 
 
 
