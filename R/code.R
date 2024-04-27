@@ -13,6 +13,9 @@ library(pROC)
 library(MASS)
 library(Metrics)
 library(car)
+library(randomForest)
+library(rpart)
+
 
 
 path <- "./data/loan_data.csv"
@@ -630,7 +633,7 @@ data.test.1 <- data.7[-ind, ]
 model.1 <- glm(credit.policy ~ ., family = binomial(), data = data.train.1)
 summary(model.1)
 
-prediction.1 <- round(probabilities)
+prediction.1 <- round(predict(model.1, newdata = data.test.1, type = "response"))
 vif(model.1)
 
 # compute some indices for evaluation 
@@ -638,8 +641,8 @@ model.1.auc <- pROC::auc(pROC::roc(data.test.1$credit.policy, prediction.1))
 
 # plot the ROC curve
 roc_curve <- pROC::roc(data.test.1$credit.policy, prediction.1)
-plot(roc_curve, main="ROC Curve", col = "blue")
-legend("bottomright", legend = paste("AUC = ", round(auc(roc_curve), 2)), col = "blue", lwd = 2, bty = "n")
+#plot(roc_curve, main="ROC Curve", col = "blue")
+#legend("bottomright", legend = paste("AUC = ", round(auc(roc_curve), 2)), col = "blue", lwd = 2, bty = "n")
 
 
 model.1.conf.matrix <- caret::confusionMatrix(data = factor(prediction.1, levels = c("0", "1")),
@@ -660,7 +663,6 @@ model.1.recall #TP/TP+FN 0.9696186
 model.1.f1 #Harmonic mean between precision and recall 0.9425071 
 
 #Probably very good because the company assigns the credit.policy based on this data
-
 
 
 
@@ -726,6 +728,12 @@ model.2.recall #TP/TP+FN 0.9883 higher
 model.2.f1 #harmonic mean between precision and recall 0.9415 lower
 # the two model performance are not much different
 
+model.1.auc #0.8005
+model.1.accuracy #TP+TN/ALL 0.9044885 
+model.1.precision #TP/TP+FP 0.9168704
+model.1.recall #TP/TP+FN 0.9696186 
+model.1.f1 #Harmonic mean between precision and recall 0.9425071 
+
 
 
 
@@ -759,6 +767,88 @@ model.3.f1 #Harmonic mean between precision and recall 0.94221 lower
 
 
 
+
+
+# random forest
+ind <- sample(nrow(data.7), size = 0.8*nrow(data.7))
+data.train.5 <- data.7[ind, ]
+data.test.5 <- data.7[-ind, ]
+
+rf.1=randomForest(credit.policy~.,data=data.train.5)
+rf.1   # it can't predict fraudulent
+predictions.5 <- round(predict(model.1, newdata = data.test.1, type = "response"))
+
+table(predictions.5, data.test.5$credit.policy)
+
+
+
+model.5.auc <- pROC::auc(pROC::roc(data.test.5$credit.policy, predictions.5))
+model.5.conf.matrix <- caret::confusionMatrix(data = factor(predictions.5, levels = c("0", "1")),
+                                              reference = data.test.5$credit.policy,
+                                              positive = "1")
+model.5.accuracy <- model.5.conf.matrix$overall["Accuracy"]
+model.5.precision <- model.5.conf.matrix$byClass["Precision"]
+model.5.recall <- model.5.conf.matrix$byClass["Recall"]
+model.5.f1 <- model.5.conf.matrix$byClass["F1"]
+
+
+model.5.conf.matrix$table
+model.5.auc #0.8193 higher
+model.5.accuracy #TP+TN/ALL 0.9008351 same
+model.5.precision #TP/TP+FP 0.9178255 higher
+model.5.recall #TP/TP+FN 0.9603175  lower 
+model.5.f1 #harmonic mean between precision and recall 0.9385908  lower
+
+
+
+
+
+
+
+
+
+
+
+
+
+#tree
+ind <- sample(nrow(data.7), size = 0.8*nrow(data.7))
+data.train.6 <- data.7[ind, ]
+data.test.6 <- data.7[-ind, ]
+
+model.6 <- rpart(credit.policy ~ ., data = data.train.6)
+prp(model.6, extra = 1, box.palette = c("lightblue", "lightgreen"),
+    branch.lty = 3, branch = 1, varlen = 0, yesno = 2, shadow.col = "gray", faclen = 0)
+predictions.6 <- predict(model.6, newdata = data.test.6, type = "class")
+
+model.6.conf.matrix <- caret::confusionMatrix(data = factor(data.test.6$credit.policy, levels = c("0", "1")),
+                                              reference = factor(predictions.6, levels = c("0", "1")),
+                                              positive = "1")
+model.6.accuracy <- model.6.conf.matrix$overall["Accuracy"]
+model.6.precision <- model.6.conf.matrix$byClass["Precision"] # Precision is calculated as Sensitivity
+model.6.recall <- model.6.conf.matrix$byClass["Recall"] # Recall is calculated as Precision
+model.6.f1 <- model.6.conf.matrix$byClass["F1"]
+
+summary(model.6)
+model.6.conf.matrix$table 
+model.6.accuracy #0.9822547   
+model.6.precision #0.9961735  
+model.6.recall #0.9823899 
+model.6.f1 #0.9892337 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #Which are the variables that affect more the decision of the interest rate?====
 
 
@@ -769,6 +859,9 @@ data.8 <- data.2 %>%
   dplyr::select(-cluster_id, -not.fully.paid, -total_interests)
 
 
+corr.matrix.3 <- cor(data.8 %>% select_if(.predicate = is.numeric))
+ggcorrplot(corr.matrix.3, type = "lower", outline.color = "white", lab = TRUE) +
+  ggtitle("Correlation Heatmap")
 
 
 
