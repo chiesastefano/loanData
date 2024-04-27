@@ -321,7 +321,7 @@ data.5 <- data.4 %>%
 # Let's start with clustering with clients related variables (excluding the one assigned by the company)
 data.6 <- data.5 %>%
   select( -credit.policy, -int.rate, -installment, -not.fully.paid, -debt, -total_interests)
-
+colnames(data.6)
 
 # I don't want to scale binary variables
 numeric_columns.1 <- sapply(data.6, is.numeric)
@@ -398,13 +398,6 @@ plot.h.1_average <- fviz_cluster(list(data = data.6s, cluster = h.1.clusters_ave
                                  geom = "point", stand = FALSE, ellipse = FALSE)
 
 grid.arrange(plot.h.1_complete, plot.h.1_single, plot.h.1_average, ncol = 3)
-
-
-#compute thee silhoutte score: it suggest that they're similar withing clusters 
-#compared to the others, but it's mainly because the cluster 1 is dominant
-mean(silhouette(h.1.clusters_complete, dist.1_d)[, "sil_width"])  
-mean(silhouette(h.1.clusters_single, dist.1_d)[, "sil_width"])
-mean(silhouette(h.1.clusters_average, dist.1_d)[, "sil_width"])
 
 
 # we need something that considers the shape of the cluster (DBScan)
