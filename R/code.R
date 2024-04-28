@@ -607,7 +607,7 @@ ggplot(data.2, aes(x = cluster_id, y = log(total_interests), fill = cluster_id))
 
 #Which are the variables that make a client respecting the company policy?=========
 data.7 <- data.2 %>%
-  dplyr::select(-int.rate, -cluster_id, -not.fully.paid, -total_interests)
+  dplyr::select(-int.rate, -not.fully.paid, -total_interests, -installment)
 
 corr.matrix.1 <- cor(data.7 %>% select_if(.predicate = is.numeric))
 ggcorrplot(corr.matrix.1, type = "lower", outline.color = "white", lab = TRUE) +
@@ -805,11 +805,14 @@ model.5.f1 #harmonic mean between precision and recall 0.9385908  lower
 
 
 #tree
+library(rpart.plot)
+
 ind <- sample(nrow(data.7), size = 0.8*nrow(data.7))
 data.train.6 <- data.7[ind, ]
 data.test.6 <- data.7[-ind, ]
 
 model.6 <- rpart(credit.policy ~ ., data = data.train.6)
+par(mar=c(1,1,1,1))
 prp(model.6, extra = 1, box.palette = c("lightblue", "lightgreen"),
     branch.lty = 3, branch = 1, varlen = 0, yesno = 2, shadow.col = "gray", faclen = 0)
 predictions.6 <- predict(model.6, newdata = data.test.6, type = "class")
@@ -849,7 +852,7 @@ data.8 <- data.2 %>%
   mutate(
     iti = installment / (annual.inc / 12) # compute the installment to income ratio
   ) %>%
-  dplyr::select(-cluster_id, -not.fully.paid, -total_interests)
+  dplyr::select(-cluster_id, -not.fully.paid, -total_interests, -installment)
 
 
 corr.matrix.3 <- cor(data.8 %>% select_if(.predicate = is.numeric))
@@ -873,19 +876,19 @@ prediction.4 <- predict(model.4, newdata = data.test.2, type = "response")
 
 # compute R-squared
 rsq <- cor(prediction.4, data.test.2$int.rate)^2
-rsq #0.6548284
+rsq #0.6093039
 
 
 
 # compute McFadden's R-squared
 model.null <- glm(int.rate ~ 1, family = Gamma("log"), data = data.train.2)
 rsq.mcfadden <- 1 - logLik(model.4)/logLik(model.null)
-rsq.mcfadden #'log Lik.' -0.2541747 (df=21)
+rsq.mcfadden #'log Lik.' -0.2305983 (df=20)
 
 
 # compute RMSE
 rmse <- rmse(data.test.2$int.rate, prediction.4)
-rmse # 0.0132083866078056
+rmse # 0.01695035
 mean(data.test.2$int.rate) #0.1230635 
 
 # residuals
@@ -911,17 +914,17 @@ prediction.5 <- predict(model.5, newdata = data.test.2, type = "response")
 
 # compute R-squared
 rsq <- cor(prediction.5, data.test.2$int.rate)^2
-rsq #0.6552216 # higher R^2 even with less variables
+rsq #0.6088126 # higher R^2 even with less variables
 
 
 model.null2 <- glm(int.rate ~ 1, family = Gamma("log"), data = data.train.2)
 rsq.mcfadden2 <- 1 - logLik(model.5)/logLik(model.null2)
-rsq.mcfadden2 #'log Lik.' -0.2540988 (df=16): similar to the previous, but with less predictors
+rsq.mcfadden2 #'log Lik.' -0.2305437 (df=18): similar to the previous, but with less predictors
 
 # compute RMSE
-rmse <- rmse(data.test.2$int.rate, prediction.4)
-rmse # 0.01597325
-mean(data.test.2$int.rate) #0.1230635 
+rmse <- rmse(data.test.2$int.rate, prediction.5)
+rmse # 0.01695035
+mean(data.test.2$int.rate) #0.1226729 
 
 
 # residuals
