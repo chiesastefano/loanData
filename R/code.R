@@ -935,3 +935,8 @@ data.test.2$res2 <- res.2
 corr.matrix.3 <- cor(data.test.2 %>% select_if(.predicate = is.numeric))
 ggcorrplot(corr.matrix.3, type = "lower", outline.color = "white", lab = TRUE) +
   ggtitle("Correlation Heatmap") #almost identical
+
+
+
+plot(data.test.2$int.rate, res.2, xlab = "Interest Rate", ylab = "res.2")
+abline(lm(res.2 ~ data.test.2$int.rate), col = "red")
