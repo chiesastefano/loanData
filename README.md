@@ -1,5 +1,4 @@
-# Insights into LendingClub.com Client Loan Portfolio: An Analytical Breakdown
-## Stefano Chiesa Statistical Learning Project (UNIMI)
+# Insights into LendingClub.com Client Loan Portfolio
 Key words: Lending, Borrowing, Supervised Learning, Unsupervised Learning, Statistics, Clustering
 
 The project analyses the data provided by LendingClub.com, a financial services company that gives the opportunity to investors to choose potential borrowers. 
