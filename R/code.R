@@ -813,8 +813,9 @@ data.test.6 <- data.7[-ind, ]
 
 model.6 <- rpart(credit.policy ~ ., data = data.train.6)
 par(mar=c(1,1,1,1))
-prp(model.6, extra = 1, box.palette = c("lightblue", "lightgreen"),
-    branch.lty = 3, branch = 1, varlen = 0, yesno = 2, shadow.col = "gray", faclen = 0)
+
+rpart.plot::prp(model.6, extra = 1, box.palette = c("lightblue", "lightgreen"),
+                branch.lty = 3, branch = 1, varlen = 0, yesno = 2, shadow.col = "gray", faclen = 0)
 predictions.6 <- predict(model.6, newdata = data.test.6, type = "class")
 
 model.6.conf.matrix <- caret::confusionMatrix(data = factor(data.test.6$credit.policy, levels = c("0", "1")),
